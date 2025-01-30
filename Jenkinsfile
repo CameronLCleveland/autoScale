@@ -19,7 +19,7 @@ pipeline {
         }
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/CameronLCleveland/autoScale/edit/main/Jenkinsfile' 
+                git branch: 'main', url: 'https://github.com/CameronLCleveland/class5.git' 
             }
         }
         stage('Initialize Terraform') {
