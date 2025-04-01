@@ -1,44 +1,46 @@
 pipeline {
     agent any
     environment {
-        AWS_REGION = 'us-east-1'
+        AWS_REGION = 'us-east-1'  // Set AWS region as needed
     }
     stages {
         stage('Set AWS Credentials') {
             steps {
-                withCredentials([[ 
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: 'AWS_ACCESS_KEY' 
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'AWS_ACCESS_KEY'  // Ensure this matches the credentials in Jenkins
                 ]]) {
                     script {
-                        // Using a Docker container to run AWS CLI commands
-                        sh '''
-                        docker run --rm \
-                            -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
-                            -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
-                            -e AWS_DEFAULT_REGION=$AWS_REGION \
-                            amazon/aws-cli sts get-caller-identity
-                        '''
+                        // AWS credentials are injected into the environment
+                        echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"
+                        echo "AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY"
+                        // Test AWS credentials by running Terraform directly
+                        sh 'terraform version'
                     }
                 }
             }
         }
+
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/CameronLCleveland/autoScale.git' 
+                git branch: 'main', url: 'https://github.com/CameronLCleveland/autoScale.git'
             }
         }
+
         stage('Initialize Terraform') {
             steps {
+                // Initialize Terraform, this does not need Docker or AWS CLI
                 sh 'terraform init'
             }
         }
+
         stage('Plan Terraform') {
             steps {
-                withCredentials([[ 
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: 'AWS_ACCESS_KEY' 
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'AWS_ACCESS_KEY'
                 ]]) {
+                    // Ensure the AWS environment variables are set before running Terraform
                     sh '''
                     export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
                     export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
@@ -47,13 +49,15 @@ pipeline {
                 }
             }
         }
+
         stage('Apply Terraform') {
             steps {
                 input message: "Approve Terraform Apply?", ok: "Deploy"
-                withCredentials([[ 
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: 'AWS_ACCESS_KEY' 
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'AWS_ACCESS_KEY'
                 ]]) {
+                    // Run terraform apply with injected AWS credentials
                     sh '''
                     export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
                     export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
