@@ -1,19 +1,25 @@
 pipeline {
     agent any
     environment {
-        AWS_REGION = 'us-east-1' 
+        AWS_REGION = 'us-east-1'
     }
     stages {
         stage('Set AWS Credentials') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
+                withCredentials([[ 
+                    $class: 'AmazonWebServicesCredentialsBinding', 
                     credentialsId: 'AWS_ACCESS_KEY' 
                 ]]) {
-                    sh '''
-                    echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"
-                    aws sts get-caller-identity
-                    '''
+                    script {
+                        // Using a Docker container to run AWS CLI commands
+                        sh '''
+                        docker run --rm \
+                            -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+                            -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+                            -e AWS_DEFAULT_REGION=$AWS_REGION \
+                            amazon/aws-cli sts get-caller-identity
+                        '''
+                    }
                 }
             }
         }
@@ -24,16 +30,14 @@ pipeline {
         }
         stage('Initialize Terraform') {
             steps {
-                sh '''
-                terraform init
-                '''
+                sh 'terraform init'
             }
         }
         stage('Plan Terraform') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'AWS_ACCESS_KEY'
+                withCredentials([[ 
+                    $class: 'AmazonWebServicesCredentialsBinding', 
+                    credentialsId: 'AWS_ACCESS_KEY' 
                 ]]) {
                     sh '''
                     export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
@@ -46,9 +50,9 @@ pipeline {
         stage('Apply Terraform') {
             steps {
                 input message: "Approve Terraform Apply?", ok: "Deploy"
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'AWS_ACCESS_KEY'
+                withCredentials([[ 
+                    $class: 'AmazonWebServicesCredentialsBinding', 
+                    credentialsId: 'AWS_ACCESS_KEY' 
                 ]]) {
                     sh '''
                     export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
